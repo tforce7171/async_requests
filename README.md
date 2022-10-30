@@ -8,6 +8,8 @@
 >>> results = async_requests.get(urls)
 >>> results
 [<ClientResponse(https://www.google.com/) [200 OK]> ... ]
+```
+
 ## Installing async_requests
 
 ```console
