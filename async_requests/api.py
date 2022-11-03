@@ -7,15 +7,25 @@ def get(urls, headers=None, params=None, retry:int =0):
 	return results
 
 async def _async_get(urls, headers, params, retry):
-    async with aiohttp.ClientSession(headers=headers) as session:
-        tasks = []
-        for url in urls:
-            tasks.append(asyncio.ensure_future(_async_get_chunk(session, url, params, retry)))
-        results = []
-        for future in tqdm(asyncio.as_completed(tasks), total=len(tasks)):
-            result = await future
-            results.append(result)
-    return results
+	bar = tqdm(total=len(urls))
+	results = []
+	while True:
+		try:
+			async with aiohttp.ClientSession(headers=headers) as session:
+				tasks = []
+				for url in urls:
+					tasks.append(asyncio.ensure_future(_async_get_chunk(session, url, params, retry)))
+				for future in asyncio.as_completed(tasks):
+					result = await future
+					bar.update(1)
+					results.append(result)
+		except aiohttp.client_exceptions.ServerDisconnectedError as e:
+			for result in results:
+				if str(result._url) in urls:
+					urls.remove(str(result._url))
+			continue
+		break
+	return results
 
 async def _async_get_chunk(session, url, params, max_retry):
 	retry = 0
@@ -28,6 +38,6 @@ async def _async_get_chunk(session, url, params, max_retry):
 				else:
 					await resp.read()
 					return resp
-		except aiohttp.client_exceptions.ClientPayloadError as e:
+		except Exception as e:
 			retry += 1
 			continue
